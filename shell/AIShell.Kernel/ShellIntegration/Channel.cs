@@ -9,13 +9,14 @@ internal class Channel : IDisposable
     private const int MaxNamedPipeNameSize = 104;
     private const int ConnectionTimeout = 3000;
 
+    private readonly Shell _shell;
     private readonly string _aishPipeName;
     private readonly AishClientPipe _clientPipe;
     private readonly AishServerPipe _serverPipe;
     private readonly ManualResetEvent _connSetupWaitHandler;
     private readonly CancellableReadKey _readkeyProxy;
     private readonly Queue<PostQueryMessage> _queries;
-    private readonly Shell _shell;
+    private readonly CancellationTokenSource _cancelSource;
 
     private bool _setupSuccess;
     private bool _disposed;
@@ -47,6 +48,7 @@ internal class Channel : IDisposable
         // so we need to override the 'ReadKey' with a cancellable read-key method.
         _readkeyProxy = new CancellableReadKey();
         _queries = new Queue<PostQueryMessage>();
+        _cancelSource = new CancellationTokenSource();
     }
 
     private async void InitializeConnection()
@@ -68,7 +70,7 @@ internal class Channel : IDisposable
 
     private async void ServerThreadProc()
     {
-        await _serverPipe.StartProcessingAsync(ConnectionTimeout, CancellationToken.None);
+        await _serverPipe.StartProcessingAsync(ConnectionTimeout, _cancelSource.Token);
     }
 
     private void ThrowIfNotConnected()
@@ -206,10 +208,10 @@ internal class Channel : IDisposable
     /// <summary>
     /// Ask context information from the shell.
     /// </summary>
-    internal async Task<PostContextMessage> AskContext(AskContextMessage message, CancellationToken cancellationToken)
+    internal async Task<PostContextMessage> AskContext(AskContextMessage message)
     {
         ThrowIfNotConnected();
-        return await _clientPipe.AskContext(message, cancellationToken);
+        return await _clientPipe.AskContext(message);
     }
 
     public void Dispose()
@@ -219,10 +221,12 @@ internal class Channel : IDisposable
             return;
         }
 
-        _clientPipe.Dispose();
-        _serverPipe.Dispose();
+        _cancelSource.Cancel();
         _serverPipe.OnPostQuery -= OnPostQuery;
         _serverPipe.OnConnectedOrFailed -= OnConnectedOrFailed;
+
+        _clientPipe.Dispose();
+        _serverPipe.Dispose();
         _connSetupWaitHandler.Dispose();
         _disposed = true;
 

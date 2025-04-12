@@ -6,7 +6,7 @@ namespace AIShell.Abstraction;
 
 public abstract class CommandBase : Command, IDisposable
 {
-    private static readonly string[] s_helpAlias = new[] { "-h", "--help" };
+    private static readonly string[] s_helpAlias = ["-h", "--help"];
 
     /// <summary>
     /// The constructor that a derived type has to implement.

@@ -4,7 +4,7 @@ using AIShell.Abstraction;
 
 namespace AIShell.Kernel.Commands;
 
-internal class CommandRunner
+internal class CommandRunner : IDisposable
 {
     internal const string Core = "Core";
 
@@ -109,5 +109,16 @@ internal class CommandRunner
             ?? throw new AIShellException($"The term '{commandName}' is not recognized as a name of a command.");
 
         command.Parser.Invoke(commandLine);
+    }
+
+    /// <summary>
+    /// Dispose the command runner.
+    /// </summary>
+    public void Dispose()
+    {
+        foreach (var item in _commands)
+        {
+            item.Value.Dispose();
+        }
     }
 }

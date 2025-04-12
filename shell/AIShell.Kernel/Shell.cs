@@ -128,6 +128,21 @@ internal sealed class Shell : IShell
         }
     }
 
+    private void Cleanup()
+    {
+        InitEventHandler.Dispose();
+        Channel?.Dispose();
+        CommandRunner?.Dispose();
+
+        foreach (LLMAgent agent in _agents)
+        {
+            agent.Impl.Dispose();
+        }
+
+        _cancellationSource.Dispose();
+        Console.CancelKeyPress -= OnCancelKeyPress;
+    }
+
     internal void ShowBanner()
     {
         string banner = _wrapper?.Banner is null ? "AI Shell" : _wrapper.Banner;
@@ -669,6 +684,8 @@ internal sealed class Shell : IShell
                     .WriteErrorLine();
             }
         }
+
+        Cleanup();
     }
 
     /// <summary>

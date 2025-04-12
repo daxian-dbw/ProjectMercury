@@ -257,41 +257,45 @@ public abstract class PipeCommon : IDisposable
             throw new IOException("Pipe is not connected or has been closed.");
         }
 
-        int type = _pipeStream.ReadByte();
-        if (type is -1)
-        {
-            // Pipe closed.
-            return null;
-        }
-
-        if (type > (int)MessageType.PostCode)
-        {
-            _pipeStream.Close();
-            throw new IOException($"Unknown message type received: {type}. Connection was dropped.");
-        }
-
-        if (!await ReadBytesAsync(_lengthBuffer.AsMemory(), cancellationToken))
-        {
-            // Pipe closed.
-            return null;
-        }
-
-        int length = BitConverter.ToInt32(_lengthBuffer);
-        var jsonBuffer = ArrayPool<byte>.Shared.Rent(length);
-
         try
         {
-            if (!await ReadBytesAsync(jsonBuffer.AsMemory(0, length), cancellationToken))
+            // Read the message type: 1 byte.
+            await _pipeStream.ReadExactlyAsync(_lengthBuffer.AsMemory(0, 1), cancellationToken);
+
+            byte type = _lengthBuffer[0];
+            if (type > (int)MessageType.PostCode)
             {
-                // Pipe closed.
-                return null;
+                _pipeStream.Close();
+                throw new IOException($"Unknown message type received: {type}. Connection was dropped.");
             }
 
-            return DeserializePayload(type, jsonBuffer.AsSpan(0, length));
+            // Read the message length: 4 bytes.
+            await _pipeStream.ReadExactlyAsync(_lengthBuffer.AsMemory(), cancellationToken);
+
+            // Rent byte buffer for the actual message.
+            int length = BitConverter.ToInt32(_lengthBuffer);
+            var jsonBuffer = ArrayPool<byte>.Shared.Rent(length);
+
+            try
+            {
+                // Read and deserialize the actual message.
+                await _pipeStream.ReadExactlyAsync(jsonBuffer.AsMemory(0, length), cancellationToken);
+                return DeserializePayload(type, jsonBuffer.AsSpan(0, length));
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(jsonBuffer);
+            }
         }
-        finally
+        catch (EndOfStreamException)
         {
-            ArrayPool<byte>.Shared.Return(jsonBuffer);
+            // Pipe closed.
+            return null;
+        }
+        catch (OperationCanceledException)
+        {
+            // Read operation was cancelled.
+            return null;
         }
     }
 
@@ -312,34 +316,6 @@ public abstract class PipeCommon : IDisposable
             (int)MessageType.PostCode => JsonSerializer.Deserialize<PostCodeMessage>(bytes),
             _ => throw new NotSupportedException("Unreachable code"),
         };
-    }
-
-    /// <summary>
-    /// Read exactly the requested number of bytes from the pipe stream.
-    /// The requested count is the length of <paramref name="memory"/>.
-    /// </summary>
-    /// <param name="memory">A region of memory to read the bytes to.</param>
-    /// <param name="cancellationToken">A cancellation token.</param>
-    /// <returns></returns>
-    private async Task<bool> ReadBytesAsync(Memory<byte> memory, CancellationToken cancellationToken)
-    {
-        int count = 0;
-        int target = memory.Length;
-
-        do
-        {
-            int num = await _pipeStream.ReadAsync(memory[count..], cancellationToken);
-            if (num is 0)
-            {
-                // Pipe closed.
-                return false;
-            }
-
-            count += num;
-        }
-        while (count < target);
-
-        return true;
     }
 }
 
@@ -388,7 +364,10 @@ public sealed class ShellServerPipe : PipeCommon
             {
                 _server.Close();
                 // Log: first message is unexpected.
-                throw new InvalidOperationException($"Expect the first message to be '{nameof(MessageType.AskConnection)}', but it was '{message.Type}'.");
+                string error = message is null
+                    ? "Pipe was closed or broken."
+                    : $"Expect the first message to be '{nameof(MessageType.AskConnection)}', but it was '{message.Type}'.";
+                throw new InvalidOperationException(error);
             }
 
             var client = new ShellClientPipe(askConnection.PipeName);
@@ -413,7 +392,7 @@ public sealed class ShellServerPipe : PipeCommon
             var message = await GetMessageAsync(cancellationToken);
             if (message is null)
             {
-                // Log: pipe closed/broken.
+                // Log: pipe closed/broken, or the server is about to exit.
                 break;
             }
 
@@ -606,7 +585,7 @@ public sealed class AishServerPipe : PipeCommon
             var message = await GetMessageAsync(cancellationToken);
             if (message is null)
             {
-                // Log: pipe closed/broken.
+                // Log: pipe closed/broken, or the server is about to exit.
                 break;
             }
 
@@ -718,18 +697,21 @@ public sealed class AishClientPipe : PipeCommon
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A <see cref="MessageType.PostContext"/> message as the response.</returns>
     /// <exception cref="IOException">Throws when the pipe is closed by the other side.</exception>
-    public async Task<PostContextMessage> AskContext(AskContextMessage message, CancellationToken cancellationToken)
+    public async Task<PostContextMessage> AskContext(AskContextMessage message)
     {
         // Send the request message to the shell.
         SendMessage(message);
 
         // Receiving response from the shell.
-        var response = await GetMessageAsync(cancellationToken);
+        var response = await GetMessageAsync(CancellationToken.None);
         if (response is not PostContextMessage postContext)
         {
             // Log: unexpected message. drop connection.
             _client.Close();
-            throw new IOException($"Expecting '{MessageType.PostContext}' response, but received '{message.Type}' message.");
+            string error = response is null
+                ? "Pipe was closed or broken."
+                : $"Expecting '{MessageType.PostContext}' response, but received '{response.Type}' message.";
+            throw new IOException(error);
         }
 
         return postContext;
