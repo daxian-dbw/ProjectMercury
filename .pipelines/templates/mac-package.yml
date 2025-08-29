@@ -29,8 +29,6 @@ jobs:
       value: false
     - name: ob_outputDirectory
       value: '$(Build.ArtifactStagingDirectory)/ONEBRANCH_ARTIFACT'
-    - name: ob_sdl_binskim_enabled
-      value: true
     - name: repoRoot
       value: $(Build.SourcesDirectory)
     - name: Architecture

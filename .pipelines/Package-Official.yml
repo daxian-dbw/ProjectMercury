@@ -18,7 +18,7 @@ variables:
   - name: WindowsContainerImage
     value: 'onebranch.azurecr.io/windows/ltsc2022/vse2022:latest' # Docker image which is used to build the project
   - name: LinuxContainerImage
-    value: mcr.microsoft.com/onebranch/cbl-mariner/build:2.0
+    value: mcr.microsoft.com/onebranch/azurelinux/build:3.0
   - group: mscodehub-feed-read-general
   - group: mscodehub-feed-read-akv
   - name: branchCounterKey
@@ -71,7 +71,8 @@ extends:
           enabled: true
           scanFolder:  $(Build.SourcesDirectory)
         binskim:
-          enabled: false
+          enabled: true
+          exactToolVersion: 4.4.2
         apiscan:
           enabled: false
         tsaOptionsFile: .config\tsaoptions.json

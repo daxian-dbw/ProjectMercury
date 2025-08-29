@@ -21,8 +21,6 @@ jobs:
     value: false
   - name: ob_sdl_codeSignValidation_enabled
     value: false
-  - name: ob_sdl_binskim_enabled
-    value: true
   - name: ob_sdl_tsa_configFile
     value: $(repoRoot)\.config\tsaoptions.json
   - name: Architecture
