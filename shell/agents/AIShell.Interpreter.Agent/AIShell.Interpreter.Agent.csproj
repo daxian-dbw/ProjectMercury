@@ -13,6 +13,13 @@
     <!-- Disable PDB generation for the Release build -->
     <DebugSymbols>false</DebugSymbols>
     <DebugType>None</DebugType>
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'StaticAnalysis' ">
+    <Optimize>true</Optimize>
+    <!-- This is required to be full for compliance tools !-->
+    <DebugType>full</DebugType>
   </PropertyGroup>
 
   <ItemGroup>
