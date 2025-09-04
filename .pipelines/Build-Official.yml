@@ -112,8 +112,3 @@ extends:
       displayName: module - build and sign
       jobs:
       - template: /.pipelines/templates/module-build.yml@self
-
-    - stage: APIScan
-      displayName: 'ApiScan'
-      jobs:
-      - template: /.pipelines/templates/apiscan.yaml@self
