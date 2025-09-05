@@ -27,8 +27,6 @@ jobs:
       value: '$(Build.ArtifactStagingDirectory)\ONEBRANCH_ARTIFACT'
     - name: repoRoot
       value: $(Build.SourcesDirectory)\AIShell
-    - name: ob_sdl_binskim_enabled
-      value: true
     - name: ob_sdl_tsa_configFile
       value: $(repoRoot)\.config\tsaoptions.json
     - name: Architecture

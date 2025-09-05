@@ -1,7 +1,7 @@
 @{
     RootModule = 'AIShell.psm1'
     NestedModules = @("AIShell.Integration.dll")
-    ModuleVersion = '1.0.6'
+    ModuleVersion = '1.0.7'
     GUID = 'ECB8BEE0-59B9-4DAE-9D7B-A990B480279A'
     Author = 'Microsoft Corporation'
     CompanyName = 'Microsoft Corporation'
@@ -14,5 +14,5 @@
     VariablesToExport = '*'
     AliasesToExport = @('aish', 'askai', 'fixit', 'airun')
     HelpInfoURI = 'https://aka.ms/aishell-help'
-    PrivateData = @{ PSData = @{ Prerelease = 'preview6'; ProjectUri = 'https://github.com/PowerShell/AIShell' } }
+    PrivateData = @{ PSData = @{ Prerelease = 'preview7'; ProjectUri = 'https://github.com/PowerShell/AIShell' } }
 }

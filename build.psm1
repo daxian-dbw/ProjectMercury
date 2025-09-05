@@ -13,11 +13,11 @@ function Start-Build
     [CmdletBinding()]
     param (
         [Parameter()]
-        [ValidateSet('Debug', 'Release')]
+        [ValidateSet('Debug', 'Release', 'StaticAnalysis')]
         [string] $Configuration = "Debug",
 
         [Parameter()]
-        [ValidateSet('win-x86', 'win-x64', 'win-arm64', 'linux-x64', 'linux-arm64', 'osx-x64', 'osx-arm64')]
+        [ValidateSet('win-x86', 'win-x64', 'win-arm64', 'linux-x64', 'linux-arm64', 'osx-x64', 'osx-arm64', 'fxdependent')]
         [string] $Runtime = [NullString]::Value,
 
         [Parameter()]
@@ -97,7 +97,11 @@ function Start-Build
 
     Write-Host "`n[Build AI Shell ...]`n" -ForegroundColor Green
     $app_csproj = GetProjectFile $app_dir
-    dotnet publish $app_csproj -c $Configuration -o $app_out_dir -r $RID --sc
+    if ($RID -eq 'fxdependent') {
+        dotnet publish $app_csproj -c $Configuration -o $app_out_dir --no-self-contained
+    } else {
+        dotnet publish $app_csproj -c $Configuration -o $app_out_dir -r $RID --sc
+    }
 
     ## Move the 'Modules' folder to the appbase folder.
     if ($LASTEXITCODE -eq 0) {
